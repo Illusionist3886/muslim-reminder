@@ -1,0 +1,7 @@
+@font-face{font-family:me_quran;src:url(../fonts/me_quran.ttf);font-style:normal}
+.arabic{
+    font-family: me_quran !important
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
