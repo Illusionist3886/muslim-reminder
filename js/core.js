@@ -1,18 +1,27 @@
-var dhikrId = Math.floor(Math.random() * 1) + 1;
+var dhikrId = Math.floor(Math.random() * dhikrs.length) + 1;
 
-var notificationData = gtafs[dhikrId];
+// var notificationData = gtafs[dhikrId];
+var notificationData = dhikrs[dhikrId];
 
-// console.log(notificationData)
-$('.title').html(notificationData.pageTitle)
-$('.top').html(notificationData.details[0].top)
-$('.arabic').html(notificationData.details[0].arabic)
-$('.translation').html(notificationData.details[0].translation)
-$('.bottom').html(notificationData.details[0].bottom)
-$('.reference').html(notificationData.details[0].reference)
+// $('.title').html(notificationData.pageTitle)
+// $('.top').html(notificationData.details[0].top)
+// $('.arabic').html(notificationData.details[0].arabic)
+// $('.translation').html(notificationData.details[0].translation)
+// $('.bottom').html(notificationData.details[0].bottom)
+// $('.reference').html(notificationData.details[0].reference)
+
+
+
+$('.title').html(notificationData.title)
+// $('.top').html(notificationData.details[0].top)
+$('.arabic').html(notificationData.arabic)
+$('.translation').html(notificationData.english)
+// $('.bottom').html(notificationData.details[0].bottom)
+$('.reference').html(notificationData.reference)
 
 ramandaCounter()
+deedsPresent()
 
-// notifyUser()
 
 function notifyUser()
 {
@@ -51,4 +60,16 @@ var x = setInterval(function() {
   $("#demo").html(days + "d " + hours + "h "
   + minutes + "m " + seconds + "s ");
 }, 1000);
+}
+
+function deedsPresent()
+{
+  const deedsDate = new Date();
+  let deedsDay = deedsDate.getDay();
+  if(deedsDay==1 || deedsDay==4)
+  {
+    $("#deedsBox").removeClass("hidden")
+    $("#deedsBox").addClass("animate-pulse")
+    $("#deeds").html("Your deeds will be presented before Allah TODAY");
+  }
 }
