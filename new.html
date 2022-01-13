@@ -8,6 +8,7 @@
     <link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
+  <div class="fixed hidden inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="bookmark-modal"></div>
     <div class="w-full flex px-6">
       <div class="w-6/12 py-6 px-4 ">
         <div class="bg-indigo-200 rounded-md p-5">
@@ -33,24 +34,42 @@
       </div>
       <div class="w-6/12 py-6 px-4 ">
         <div class="bg-red-400 rounded-md p-5">
-          <h3 id="demo" class="text-2xl font-semibold"></h3> <span class="text-xl">Days till Ramadan, 2021</span>
+          <h3 id="demo" class="text-2xl font-semibold"></h3> <span class="text-xl">Days till Ramadan, 2022</span>
         </div>
 
         <div class="bg-red-400 rounded-md p-5 my-5 hidden" id="deedsBox">
           <h3 id="deeds" class="text-2xl"></h3>
         </div>
 
-        <div id="shortcuts">
-          <a href="#" class="w-20 flex items-center flex-col hover:bg-gray-300 my-2 transition-all duration-200 ease-linear rounded-md p-2">
+        <div id="shortcuts" class="flex">
+          <!-- <a href="#" class="w-20 flex items-center flex-col hover:bg-gray-300 my-2 transition-all duration-200 ease-linear rounded-md p-2">
             <div class="rounded-full bg-gray-200 h-10 w-10 p-2">
               <img src="https://img.icons8.com/fluency/2x/adobe-animate.png" alt="" srcset="">
             </div>
             <div class="text-center font-bold">
               Google
             </div>
-          </a>
+          </a> -->
+          <button type="button" id="showBookmarkForm" class="w-36 flex items-center flex-col hover:bg-gray-300 my-2 transition-all duration-200 ease-linear rounded-md p-2">
+            <div class="rounded-full bg-gray-200 h-10 w-10 p-2">
+              <img src="https://img.icons8.com/fluency/2x/plus.png" alt="" srcset="">
+            </div>
+            <div class="text-center font-bold">
+              Add Bookmark
+            </div>
+          </button>
+
         </div>
       </div>
+    </div>
+
+    <div class="w-1/2 hidden bg-indigo-300 mx-auto my-auto p-10 rounded-lg absolute top-1/3 left-1/4" id="bookmark-form">
+      <div class="mx-auto">
+        <input type="text" name="bookmarkname" id="bookmarkname" placeholder="Bookmark Name" class="w-full mx-auto my-2 border-2 border-teal-400 text-xl p-2">
+        <input type="text" name="bookmarkiconurl" id="bookmarkiconurl" placeholder="Bookmark Icon URL" class="w-full mx-auto my-2 border-2 border-teal-400 text-xl p-2">
+        <input type="text" name="bookmarkurl" id="bookmarkurl" placeholder="Bookmark URL" class="w-full mx-auto my-2 border-2 border-teal-400 text-xl p-2">
+      </div>
+      <button type="button" class="rounded-md bg-teal-800 hover:bg-teal-500 duration-300 hover:duration-300 ease-in-out text-white font-bold text-xl px-5 py-2" id="addBookmark">Add</button>
     </div>
 
     <script src="js/jquery-3.6.0.min.js"></script>

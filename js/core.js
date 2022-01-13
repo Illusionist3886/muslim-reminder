@@ -73,3 +73,83 @@ function deedsPresent()
     $("#deeds").html("Your deeds will be presented before Allah TODAY");
   }
 }
+
+$("#showBookmarkForm").click(function(){
+  $("#deedsBox").removeClass("animate-pulse")
+  $("#bookmark-modal").removeClass("hidden")
+  $("#bookmark-form").removeClass("hidden")
+})
+
+$("#bookmark-modal").click(showHideModal());
+
+
+function showHideModal()
+{
+  $("#bookmark-modal").click(function(){
+    $("#deedsBox").addClass("animate-pulse")
+    $("#bookmark-modal").addClass("hidden")
+    $("#bookmark-form").addClass("hidden")
+  })
+}
+// chrome.storage.sync.remove('bookmarks')
+
+$("#addBookmark").click(function(){
+  showHideModal();
+
+  let newBookmark = {
+    'name': ""+$("#bookmarkname").val()+"",
+    'icon': ""+$("#bookmarkiconurl").val()+"",
+    'url': ""+$("#bookmarkurl").val()+"",
+  }
+  // console.log(newBookmark)
+  chrome.storage.sync.get(['bookmarks'], function(result) {
+    let bookmarks = result.bookmarks
+    bookmarks.push(newBookmark)
+    chrome.storage.sync.set({bookmarks: bookmarks}, function() {
+    })
+  })
+
+  
+
+
+})
+
+// var bookmarks = [{
+//                 'name' : 'Google',
+//                 'icon'  : 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
+//                 'url' : 'https://google.com'
+
+//               },
+//               {
+//                 'name' : 'Gmail',
+//                 'icon'  : 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
+//                 'url' : 'https://gmail.com'
+//               }
+//           ];
+var bookmarks = []
+chrome.storage.sync.set({bookmark: bookmarks}, function() {
+  console.log('Value is set to ' + bookmarks);
+
+});
+
+chrome.storage.sync.get(['bookmarks'], function(result) {
+  console.log(result.bookmarks);
+  // chrome.storage.sync.remove(result.bookmarks)
+  $.each(result.bookmarks, function(index, bookmark)
+  {
+    printBookmarks(bookmark)
+  })
+});
+
+function printBookmarks(item)
+{
+      let bookmarkPrint = `<a href="${item.url}" class="w-20 flex items-center flex-col hover:bg-gray-300 my-2 transition-all duration-200 ease-linear rounded-md p-2">
+        <div class="rounded-full bg-gray-200 h-10 w-10 p-2">
+            <img src="${item.icon}" alt="" srcset="">
+        </div>
+        <div class="text-center font-bold">
+            ${item.name}
+        </div>
+      </a>`
+      $("#shortcuts").prepend(bookmarkPrint)
+}
