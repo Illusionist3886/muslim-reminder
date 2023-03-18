@@ -146,4 +146,10 @@ var dhikrs = [
         benefits: '',
         reference: 'Abu Dawud: 1522'
     }
+    ,
+    {
+        counter: false,
+        arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ حُسْنَ الخاتِمَة.',
+        bangla: '',
+    }
 ]
