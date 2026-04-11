@@ -77,26 +77,23 @@ function renderPrayerGrid() {
   var grid = ptById("prayerTimesList");
   if (!grid) return;
 
-  var mapping = [
-    { key: "Fajr", label: "Fajr" },
-    { key: "Sunrise", label: "Sunrise" },
-    { key: "Dhuhr", label: "Dhuhr" },
-    { key: "Asr", label: "Asr" },
-    { key: "Maghrib", label: "Maghrib/Iftar" },
-    { key: "Isha", label: "Isha" },
-    { key: "Suhoor", label: "Suhoor" }
-  ];
+  var mapping = getPrayerMapping();
+  var highlight = getHighlightPrayer();
+  var isSunriseActive = isWithinSunriseWindow();
 
   grid.innerHTML = "";
 
   mapping.forEach(function (item) {
-    var t = state.timings[item.key];
-    if (item.key === "Suhoor") {
-      t = state.timings.Fajr;
-    }
+    var t = resolvePrayerTime(item.key);
 
     var col = document.createElement("div");
     col.className = "prayer-col";
+    if (highlight && highlight.key === item.key) {
+      col.classList.add("is-next");
+    }
+    if (item.key === "Sunrise" && isSunriseActive) {
+      col.classList.add("is-sunrise-warning");
+    }
 
     var name = document.createElement("div");
     name.className = "pc-name";
@@ -108,6 +105,14 @@ function renderPrayerGrid() {
 
     col.appendChild(name);
     col.appendChild(time);
+
+    if (highlight && highlight.key === item.key && highlight.remainingText) {
+      var remaining = document.createElement("div");
+      remaining.className = "pc-remaining";
+      remaining.textContent = highlight.remainingText;
+      col.appendChild(remaining);
+    }
+
     grid.appendChild(col);
   });
 }
@@ -272,3 +277,163 @@ chrome.storage.sync.get(["prayerCity", "prayerMethod"], function (result) {
   bindGps();
   fetchPrayerTimes();
 });
+
+function getPrayerMapping() {
+  return [
+    { key: "Fajr", label: "Fajr" },
+    { key: "Sunrise", label: "Sunrise" },
+    { key: "Dhuhr", label: "Dhuhr" },
+    { key: "Asr", label: "Asr" },
+    { key: "Maghrib", label: "Maghrib/Iftar" },
+    { key: "Isha", label: "Isha" },
+    { key: "Suhoor", label: "Suhoor" }
+  ];
+}
+
+function resolvePrayerTime(key) {
+  if (!state.timings) return null;
+  if (key === "Suhoor") {
+    return state.timings.Fajr;
+  }
+  return state.timings[key];
+}
+
+function getNextPrayer(mapping) {
+  if (!state.timings) return null;
+  var now = new Date();
+
+  for (var i = 0; i < mapping.length; i++) {
+    var t = resolvePrayerTime(mapping[i].key);
+    if (!t) continue;
+    var parts = t.split(":");
+    var dt = new Date();
+    dt.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+    if (now < dt) {
+      return {
+        key: mapping[i].key,
+        time: t,
+        remainingText: formatRemaining(dt, now)
+      };
+    }
+  }
+
+  var fallbackTime = resolvePrayerTime("Fajr");
+  if (!fallbackTime) return null;
+  var nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + 1);
+  var nextParts = fallbackTime.split(":");
+  nextDate.setHours(
+    parseInt(nextParts[0], 10),
+    parseInt(nextParts[1], 10),
+    0,
+    0
+  );
+
+  return {
+    key: "Fajr",
+    time: fallbackTime,
+    remainingText: formatRemaining(nextDate, now)
+  };
+}
+
+function formatRemaining(target, now) {
+  var diff = Math.max(0, target.getTime() - now.getTime());
+  var totalSeconds = Math.floor(diff / 1000);
+  var hours = Math.floor(totalSeconds / 3600);
+  var minutes = Math.floor((totalSeconds % 3600) / 60);
+  var seconds = totalSeconds % 60;
+  return (
+    String(hours).padStart(2, "0") +
+    ":" +
+    String(minutes).padStart(2, "0") +
+    ":" +
+    String(seconds).padStart(2, "0")
+  );
+}
+
+setInterval(function () {
+  if (!state.timings) return;
+  renderPrayerGrid();
+}, 1000);
+
+function getHighlightPrayer() {
+  if (!state.timings) return null;
+
+  var now = new Date();
+  var order = [
+    "Fajr",
+    "Sunrise",
+    "Dhuhr",
+    "Asr",
+    "Maghrib",
+    "Isha"
+  ];
+
+  var next = null;
+  for (var i = 0; i < order.length; i++) {
+    var t = resolvePrayerTime(order[i]);
+    if (!t) continue;
+    var parts = t.split(":");
+    var dt = new Date();
+    dt.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+    if (now < dt) {
+      next = { key: order[i], time: t, date: dt };
+      break;
+    }
+  }
+
+  var currentKey = null;
+  for (var j = order.length - 1; j >= 0; j--) {
+    var ct = resolvePrayerTime(order[j]);
+    if (!ct) continue;
+    var cparts = ct.split(":");
+    var cdt = new Date();
+    cdt.setHours(parseInt(cparts[0], 10), parseInt(cparts[1], 10), 0, 0);
+    if (now >= cdt) {
+      currentKey = order[j];
+      break;
+    }
+  }
+
+  if (!currentKey) {
+    currentKey = "Isha";
+  }
+
+  if (!next) {
+    var fallbackTime = resolvePrayerTime("Fajr");
+    var nextDate = new Date();
+    nextDate.setDate(nextDate.getDate() + 1);
+    var nextParts = fallbackTime ? fallbackTime.split(":") : ["0", "0"];
+    nextDate.setHours(
+      parseInt(nextParts[0], 10),
+      parseInt(nextParts[1], 10),
+      0,
+      0
+    );
+    next = { key: "Fajr", time: fallbackTime, date: nextDate };
+  }
+
+  var diffMinutes = Math.floor(
+    (next.date.getTime() - now.getTime()) / 60000
+  );
+
+  if (diffMinutes <= 30 && diffMinutes >= 0) {
+    return {
+      key: next.key,
+      remainingText: formatRemaining(next.date, now)
+    };
+  }
+
+  return { key: currentKey, remainingText: "" };
+}
+
+function isWithinSunriseWindow() {
+  var sunrise = resolvePrayerTime("Sunrise");
+  if (!sunrise) return false;
+  var parts = sunrise.split(":");
+  var start = new Date();
+  start.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+  var end = new Date(start.getTime() + 15 * 60 * 1000);
+  var now = new Date();
+  return now >= start && now <= end;
+}
