@@ -220,6 +220,26 @@ var shortcutsEl = qs("#shortcuts");
 var shortcutsState = [];
 var editingShortcutId = null;
 var menuCloseHandlerBound = false;
+var defaultShortcuts = [
+  {
+    id: "default-seerah-gtaf",
+    name: "Seerah",
+    url: "https://seerah.gtaf.org/",
+    locked: true,
+  },
+  {
+    id: "default-quranmazid",
+    name: "Quran Mazid",
+    url: "https://quranmazid.com/",
+    locked: true,
+  },
+  {
+    id: "default-dua-gtaf",
+    name: "Dua",
+    url: "https://dua.gtaf.org/",
+    locked: true,
+  },
+];
 
 if (showBookmarkForm) {
   showBookmarkForm.addEventListener("click", function () {
@@ -294,11 +314,63 @@ function collectShortcutForm() {
     name: nameValue,
     icon: iconValue,
     url: urlValue,
+    locked: false,
   };
 }
 
 function saveShortcuts() {
   chrome.storage.sync.set({ shortcuts: shortcutsState }, function () {});
+}
+
+function normalizeUrl(value) {
+  try {
+    return new URL(value).toString();
+  } catch (e) {
+    return safeText(value).trim();
+  }
+}
+
+function mergeWithDefaultShortcuts(shortcuts) {
+  var normalizedDefaultsByUrl = {};
+  defaultShortcuts.forEach(function (item) {
+    normalizedDefaultsByUrl[normalizeUrl(item.url)] = item;
+  });
+
+  var kept = [];
+  var seenDefaultIds = {};
+
+  shortcuts.forEach(function (item) {
+    var matchedDefault = normalizedDefaultsByUrl[normalizeUrl(item.url)];
+    if (matchedDefault) {
+      kept.push({
+        id: matchedDefault.id,
+        name: matchedDefault.name,
+        icon: item.icon || getFaviconUrl(matchedDefault.url),
+        url: matchedDefault.url,
+        locked: true,
+      });
+      seenDefaultIds[matchedDefault.id] = true;
+      return;
+    }
+    if (defaultShortcuts.some(function (d) { return d.id === item.id; })) {
+      return;
+    }
+    kept.push(item);
+  });
+
+  defaultShortcuts.forEach(function (item) {
+    if (!seenDefaultIds[item.id]) {
+      kept.push({
+        id: item.id,
+        name: item.name,
+        icon: getFaviconUrl(item.url),
+        url: item.url,
+        locked: true,
+      });
+    }
+  });
+
+  return kept;
 }
 
 function openShortcutModal(item) {
@@ -348,7 +420,7 @@ function createShortcutElement(item) {
 
   var wrapper = document.createElement("div");
   wrapper.className =
-    "shortcut-item flex flex-col items-center justify-center mx-2 my-2";
+    "shortcut-item flex flex-col items-center justify-center";
   wrapper.dataset.id = item.id;
 
   var link = document.createElement("a");
@@ -372,45 +444,55 @@ function createShortcutElement(item) {
   link.appendChild(iconWrap);
   link.appendChild(name);
 
-  var menuBtn = document.createElement("button");
-  menuBtn.type = "button";
-  menuBtn.className = "shortcut-menu-btn";
-  menuBtn.textContent = "...";
-  menuBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleShortcutMenu(wrapper);
-  });
-
-  var menu = document.createElement("div");
-  menu.className = "shortcut-menu";
-
-  var editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.textContent = "Edit";
-  editBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    closeAllShortcutMenus();
-    openShortcutModal(item);
-  });
-
-  var deleteBtn = document.createElement("button");
-  deleteBtn.type = "button";
-  deleteBtn.textContent = "Delete";
-  deleteBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    closeAllShortcutMenus();
-    deleteShortcut(item.id);
-  });
-
-  menu.appendChild(editBtn);
-  menu.appendChild(deleteBtn);
-
   wrapper.appendChild(link);
-  wrapper.appendChild(menuBtn);
-  wrapper.appendChild(menu);
+
+  if (item.locked) {
+    var fixedDot = document.createElement("span");
+    fixedDot.className = "shortcut-fixed-dot";
+    fixedDot.title = "Fixed shortcut";
+    wrapper.appendChild(fixedDot);
+  }
+
+  if (!item.locked) {
+    var menuBtn = document.createElement("button");
+    menuBtn.type = "button";
+    menuBtn.className = "shortcut-menu-btn";
+    menuBtn.textContent = "...";
+    menuBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleShortcutMenu(wrapper);
+    });
+
+    var menu = document.createElement("div");
+    menu.className = "shortcut-menu";
+
+    var editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeAllShortcutMenus();
+      openShortcutModal(item);
+    });
+
+    var deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeAllShortcutMenus();
+      deleteShortcut(item.id);
+    });
+
+    menu.appendChild(editBtn);
+    menu.appendChild(deleteBtn);
+
+    wrapper.appendChild(menuBtn);
+    wrapper.appendChild(menu);
+  }
 
   return wrapper;
 }
@@ -431,7 +513,7 @@ function toggleShortcutMenu(wrapper) {
 
 function deleteShortcut(id) {
   shortcutsState = shortcutsState.filter(function (item) {
-    return item.id !== id;
+    return item.id !== id || item.locked;
   });
   saveShortcuts();
   renderShortcuts();
@@ -516,6 +598,7 @@ chrome.storage.sync.get(["shortcuts", "bookmarks"], function (result) {
     }
     return item;
   });
+  shortcutsState = mergeWithDefaultShortcuts(shortcutsState);
 
   saveShortcuts();
   renderShortcuts();

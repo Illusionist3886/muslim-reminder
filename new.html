@@ -45,12 +45,47 @@
     .prayer-col .pc-remaining{font-size:11px;color:#4b5563;margin-top:4px;}
 
     .shortcut-item{position:relative;}
+    .shortcuts-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      width:100%;
+    }
+    @media(min-width:768px){
+      .shortcuts-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+    }
+    @media(min-width:1280px){
+      .shortcuts-grid{grid-template-columns:repeat(6,minmax(0,1fr));}
+    }
+    .shortcuts-grid .shortcut-item,
+    .shortcuts-grid #showBookmarkForm{
+      width:100%;
+      min-width:0;
+      margin:0;
+    }
+    .shortcuts-grid .shortcut-item a,
+    .shortcuts-grid #showBookmarkForm{
+      width:100%;
+      max-width:110px;
+      margin:0 auto;
+    }
     .shortcut-menu-btn{opacity:0;transition:opacity 0.2s ease;position:absolute;top:2px;right:2px;border:none;background:#fff;border:1px solid #e5e7eb;border-radius:6px;font-size:14px;line-height:1;padding:2px 6px;cursor:pointer;}
     .shortcut-item:hover .shortcut-menu-btn{opacity:1;}
     .shortcut-menu{display:none;position:absolute;top:28px;right:2px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;min-width:110px;box-shadow:0 8px 20px rgba(0,0,0,0.12);z-index:50;}
     .shortcut-item.is-open .shortcut-menu{display:block;}
     .shortcut-menu button{display:block;width:100%;text-align:left;padding:8px 10px;background:#fff;border:none;font-size:12px;cursor:pointer;}
     .shortcut-menu button:hover{background:#f3f4f6;}
+    .shortcut-fixed-dot{
+      position:absolute;
+      top:6px;
+      left:8px;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#dc2626;
+      box-shadow:0 0 0 2px #fff;
+      z-index:20;
+    }
     </style>
 </head>
 <body>
@@ -125,7 +160,7 @@
           </div>
         </div>
 
-        <div id="shortcuts" class="flex">
+        <div id="shortcuts" class="shortcuts-grid">
           <!-- <a href="#" class="w-20 flex items-center flex-col hover:bg-gray-300 my-2 transition-all duration-200 ease-linear rounded-md p-2">
             <div class="rounded-full bg-gray-200 h-10 w-10 p-2">
               <img src="https://img.icons8.com/fluency/2x/adobe-animate.png" alt="" srcset="">
@@ -134,7 +169,7 @@
               Google
             </div>
           </a> -->
-          <button type="button" id="showBookmarkForm" class="w-36 flex items-center flex-col hover:bg-gray-300 my-2 transition-all duration-200 ease-linear rounded-md p-2">
+          <button type="button" id="showBookmarkForm" class="flex items-center flex-col hover:bg-gray-300 transition-all duration-200 ease-linear rounded-md p-2">
             <div class="rounded-full bg-gray-200 h-10 w-10 p-2">
               <img src="https://img.icons8.com/fluency/2x/plus.png" alt="" srcset="">
             </div>
