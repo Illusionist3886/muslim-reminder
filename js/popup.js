@@ -6,6 +6,12 @@ function safeText(value) {
   return value == null ? "" : String(value);
 }
 
+function escapeHtml(str) {
+  var el = document.createElement("span");
+  el.textContent = str;
+  return el.innerHTML;
+}
+
 function normalizeRef(ref) {
   return safeText(ref)
     .replace(/\s+/g, " ")
@@ -46,9 +52,9 @@ function refToLinks(ref) {
     var url = "https://sunnah.com/" + book + ":" + number;
     return (
       '<a href="' +
-      url +
+      escapeHtml(url) +
       '" target="_blank" rel="noopener noreferrer">' +
-      safeText(part) +
+      escapeHtml(safeText(part)) +
       "</a>"
     );
   });

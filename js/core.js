@@ -19,6 +19,12 @@ function safeText(value) {
   return value == null ? "" : String(value);
 }
 
+function escapeHtml(str) {
+  var el = document.createElement("span");
+  el.textContent = str;
+  return el.innerHTML;
+}
+
 function getFaviconUrl(rawUrl) {
   try {
     var url = new URL(rawUrl);
@@ -66,7 +72,7 @@ function refToLinks(ref) {
 
     var number = m[m.length - 1];
     var url = "https://sunnah.com/" + book + ":" + number;
-    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + safeText(part) + "</a>";
+    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(safeText(part)) + "</a>";
   });
 
   return rendered.join("; ");
@@ -239,6 +245,18 @@ var defaultShortcuts = [
     url: "https://dua.gtaf.org/",
     locked: true,
   },
+  {
+    id: "default-ihadis",
+    name: "iHadis",
+    url: "https://ihadis.com/",
+    locked: true,
+  },
+  {
+    id: "default-dua-ruqyah",
+    name: "Dua Ruqyah",
+    url: "https://duaruqyah.com/",
+    locked: true,
+  },
 ];
 
 if (showBookmarkForm) {
@@ -298,7 +316,13 @@ function collectShortcutForm() {
     return null;
   }
 
+  if (!safeUrl(urlValue)) {
+    return null;
+  }
+
   if (!iconValue) {
+    iconValue = getFaviconUrl(urlValue);
+  } else if (!safeUrl(iconValue)) {
     iconValue = getFaviconUrl(urlValue);
   }
 
@@ -320,6 +344,18 @@ function collectShortcutForm() {
 
 function saveShortcuts() {
   chrome.storage.sync.set({ shortcuts: shortcutsState }, function () {});
+}
+
+function safeUrl(raw) {
+  try {
+    var parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return "";
+    }
+    return parsed.href;
+  } catch (e) {
+    return "";
+  }
 }
 
 function normalizeUrl(value) {
@@ -424,7 +460,8 @@ function createShortcutElement(item) {
   wrapper.dataset.id = item.id;
 
   var link = document.createElement("a");
-  link.href = safeText(item.url);
+  var validatedUrl = safeUrl(item.url) || "#";
+  link.href = validatedUrl;
   link.className =
     "w-20 flex items-center flex-col hover:bg-gray-300 transition-all duration-200 ease-linear rounded-md p-2";
   link.target = "_blank";
