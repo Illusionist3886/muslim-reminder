@@ -319,7 +319,11 @@ function collectShortcutForm() {
 }
 
 function saveShortcuts() {
-  chrome.storage.sync.set({ shortcuts: shortcutsState }, function () {});
+  chrome.storage.sync.set({ shortcuts: shortcutsState }, function () {
+    if (chrome.runtime.lastError) {
+      console.error("Failed to save shortcuts:", chrome.runtime.lastError.message);
+    }
+  });
 }
 
 function normalizeUrl(value) {

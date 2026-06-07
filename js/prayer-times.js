@@ -55,7 +55,9 @@ var state = {
   city: prayerCities[0],
   method: "MuslimWorldLeague",
   timings: null,
-  hijri: null
+  hijri: null,
+  loading: false,
+  error: null
 };
 
 function updateDates() {
@@ -71,7 +73,7 @@ function updateDates() {
   }
 }
 
-function renderPrayerGrid() {
+function renderPrayerGrid(forceRebuild) {
   if (!state.timings) return;
 
   var grid = ptById("prayerTimesList");
@@ -81,6 +83,11 @@ function renderPrayerGrid() {
   var highlight = getHighlightPrayer();
   var isSunriseActive = isWithinSunriseWindow();
 
+  if (!forceRebuild && grid.children.length > 0) {
+    updatePrayerGridHighlight(grid, mapping, highlight, isSunriseActive);
+    return;
+  }
+
   grid.innerHTML = "";
 
   mapping.forEach(function (item) {
@@ -88,6 +95,7 @@ function renderPrayerGrid() {
 
     var col = document.createElement("div");
     col.className = "prayer-col";
+    col.dataset.prayerKey = item.key;
     if (highlight && highlight.key === item.key) {
       col.classList.add("is-next");
     }
@@ -114,6 +122,30 @@ function renderPrayerGrid() {
     }
 
     grid.appendChild(col);
+  });
+}
+
+function updatePrayerGridHighlight(grid, mapping, highlight, isSunriseActive) {
+  var cols = grid.querySelectorAll("[data-prayer-key]");
+  cols.forEach(function (col) {
+    var key = col.dataset.prayerKey;
+    var isNext = highlight && highlight.key === key;
+    var isSunrise = key === "Sunrise" && isSunriseActive;
+
+    col.classList.toggle("is-next", isNext);
+    col.classList.toggle("is-sunrise-warning", isSunrise);
+
+    var remainingEl = col.querySelector(".pc-remaining");
+    if (isNext && highlight.remainingText) {
+      if (!remainingEl) {
+        remainingEl = document.createElement("div");
+        remainingEl.className = "pc-remaining";
+        col.appendChild(remainingEl);
+      }
+      remainingEl.textContent = highlight.remainingText;
+    } else if (remainingEl) {
+      remainingEl.remove();
+    }
   });
 }
 
@@ -227,9 +259,23 @@ function bindGps() {
         updateCityInput();
         fetchPrayerTimes();
       },
-      function () {}
+      function () {
+        updateCityInput();
+        showPrayerError("Location access denied. Select a city instead.");
+      }
     );
   });
+}
+
+function showPrayerError(msg) {
+  var grid = ptById("prayerTimesList");
+  if (!grid) return;
+  grid.innerHTML = "";
+  var errDiv = document.createElement("div");
+  errDiv.className = "prayer-error";
+  errDiv.style.cssText = "color:#b91c1c;font-size:13px;padding:8px;text-align:center;";
+  errDiv.textContent = msg;
+  grid.appendChild(errDiv);
 }
 
 function fetchPrayerTimes() {
@@ -242,25 +288,66 @@ function fetchPrayerTimes() {
     "&method=" +
     methodId;
 
-  fetch(url)
-    .then(function (res) {
-      return res.json();
-    })
-    .then(function (data) {
-      if (!data || !data.data || !data.data.timings) {
-        return;
-      }
-      state.timings = data.data.timings;
-      state.hijri = data.data.date ? data.data.date.hijri : null;
+  state.loading = true;
+  state.error = null;
+
+  var cacheKey = "prayerTimes_" + new Date().toISOString().slice(0, 10);
+
+  chrome.storage.local.get([cacheKey], function (cached) {
+    if (cached && cached[cacheKey] && cached[cacheKey].timings) {
+      state.timings = cached[cacheKey].timings;
+      state.hijri = cached[cacheKey].hijri || null;
+      state.loading = false;
       if (state.hijri) {
         window.dispatchEvent(
           new CustomEvent("hijriUpdated", { detail: state.hijri })
         );
       }
       updateDates();
-      renderPrayerGrid();
+      renderPrayerGrid(true);
+      fetchPrayerTimesFresh(url, cacheKey);
+      return;
+    }
+
+    fetchPrayerTimesFresh(url, cacheKey);
+  });
+}
+
+function fetchPrayerTimesFresh(url, cacheKey) {
+  fetch(url)
+    .then(function (res) {
+      if (!res.ok) {
+        throw new Error("HTTP " + res.status);
+      }
+      return res.json();
     })
-    .catch(function () {});
+    .then(function (data) {
+      if (!data || !data.data || !data.data.timings) {
+        throw new Error("Invalid response");
+      }
+      state.timings = data.data.timings;
+      state.hijri = data.data.date ? data.data.date.hijri : null;
+      state.loading = false;
+      state.error = null;
+      if (state.hijri) {
+        window.dispatchEvent(
+          new CustomEvent("hijriUpdated", { detail: state.hijri })
+        );
+      }
+      updateDates();
+      renderPrayerGrid(true);
+
+      var cacheData = {};
+      cacheData[cacheKey] = { timings: state.timings, hijri: state.hijri };
+      chrome.storage.local.set(cacheData, function () {});
+    })
+    .catch(function (err) {
+      state.loading = false;
+      state.error = err.message || "Network error";
+      if (!state.timings) {
+        showPrayerError("Could not load prayer times. Tap to retry.");
+      }
+    });
 }
 
 chrome.storage.sync.get(["prayerCity", "prayerMethod"], function (result) {
@@ -353,7 +440,7 @@ function formatRemaining(target, now) {
 
 setInterval(function () {
   if (!state.timings) return;
-  renderPrayerGrid();
+  renderPrayerGrid(false);
 }, 1000);
 
 function getHighlightPrayer() {
