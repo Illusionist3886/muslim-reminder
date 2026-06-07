@@ -72,41 +72,15 @@ function refToLinks(ref) {
   return rendered.join("; ");
 }
 
-// var notificationData = gtafs[dhikrId];
 var notificationData = dhikrs[dhikrId];
 
-// $('.title').html(notificationData.pageTitle)
-// $('.top').html(notificationData.details[0].top)
-// $('.arabic').html(notificationData.details[0].arabic)
-// $('.translation').html(notificationData.details[0].translation)
-// $('.bottom').html(notificationData.details[0].bottom)
-// $('.reference').html(notificationData.details[0].reference)
-
 setHtml(".title", notificationData.title || "");
-// $('.top').html(notificationData.details[0].top)
 setHtml(".arabic", notificationData.arabic || "");
 setHtml(".translation", notificationData.english || "");
-// $('.bottom').html(notificationData.details[0].bottom)
 setHtml(".reference", refToLinks(notificationData.reference || ""));
 
 setupRamadanCountdown();
 deedsPresent();
-
-function notifyUser() {
-  var showNotification = {
-    type: "basic",
-    iconUrl: "icon/icon48.png",
-    title: "dsfdsf",
-    message: "Wet your tounge with the remembrance of Allah",
-  };
-
-  const d = new Date();
-  let time = d.getTime();
-  remindDhikr = "dhikr" + time;
-  chrome.notifications.create(remindDhikr, showNotification);
-}
-
-// https://dua.gtaf.org/api/en/details/260
 
 // Ramadan Reminder
 var ramadanTimerId = null;
