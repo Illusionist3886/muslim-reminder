@@ -1,22 +1,11 @@
 var dhikrId = Math.floor(Math.random() * dhikrs.length);
-
-function qs(selector) {
-  return document.querySelector(selector);
-}
-
-function qsa(selector) {
-  return Array.prototype.slice.call(document.querySelectorAll(selector));
-}
+var notificationData = dhikrs[dhikrId];
 
 function setHtml(selector, html) {
   var el = qs(selector);
   if (el) {
     el.innerHTML = html;
   }
-}
-
-function safeText(value) {
-  return value == null ? "" : String(value);
 }
 
 function getFaviconUrl(rawUrl) {
@@ -28,65 +17,9 @@ function getFaviconUrl(rawUrl) {
   }
 }
 
-function normalizeRef(ref) {
-  return safeText(ref)
-    .replace(/\s+/g, " ")
-    .replace(/;+/g, ";")
-    .trim();
-}
-
-function refToLinks(ref) {
-  var text = normalizeRef(ref);
-  if (!text) {
-    return "";
-  }
-
-  var parts = text.split(";").map(function (p) {
-    return p.trim();
-  });
-
-  var rendered = parts.map(function (part) {
-    var m =
-      part.match(/Bukhari\s*(No:)?\s*([0-9]+)/i) ||
-      part.match(/Muslim\s*(No:)?\s*([0-9]+)/i) ||
-      part.match(/Tirmidhi\s*(No:)?\s*([0-9]+)/i) ||
-      part.match(/Abu Dawud\s*(No:)?\s*([0-9]+)/i) ||
-      part.match(/Ibn Majah\s*(No:)?\s*([0-9]+)/i);
-
-    if (!m) {
-      return safeText(part);
-    }
-
-    var book = m[0].split(/\s+/)[0].toLowerCase();
-    if (book === "abu") {
-      book = "abudawud";
-    } else if (book === "ibn") {
-      book = "ibnmajah";
-    }
-
-    var number = m[m.length - 1];
-    var url = "https://sunnah.com/" + book + ":" + number;
-    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + safeText(part) + "</a>";
-  });
-
-  return rendered.join("; ");
-}
-
-// var notificationData = gtafs[dhikrId];
-var notificationData = dhikrs[dhikrId];
-
-// $('.title').html(notificationData.pageTitle)
-// $('.top').html(notificationData.details[0].top)
-// $('.arabic').html(notificationData.details[0].arabic)
-// $('.translation').html(notificationData.details[0].translation)
-// $('.bottom').html(notificationData.details[0].bottom)
-// $('.reference').html(notificationData.details[0].reference)
-
 setHtml(".title", notificationData.title || "");
-// $('.top').html(notificationData.details[0].top)
 setHtml(".arabic", notificationData.arabic || "");
 setHtml(".translation", notificationData.english || "");
-// $('.bottom').html(notificationData.details[0].bottom)
 setHtml(".reference", refToLinks(notificationData.reference || ""));
 
 setupRamadanCountdown();
@@ -106,9 +39,6 @@ function notifyUser() {
   chrome.notifications.create(remindDhikr, showNotification);
 }
 
-// https://dua.gtaf.org/api/en/details/260
-
-// Ramadan Reminder
 var ramadanTimerId = null;
 
 function setupRamadanCountdown() {
@@ -197,7 +127,7 @@ function showRamadanCountdown(hijriYear) {
 
 function deedsPresent() {
   const deedsDate = new Date();
-  let deedsDay = deedsDate.getDay();
+  const deedsDay = deedsDate.getDay();
   if (deedsDay == 1 || deedsDay == 4) {
     var deedsBox = qs("#deedsBox");
     if (deedsBox) {
@@ -273,7 +203,12 @@ function hideModal() {
 if (bookmarkModal) {
   bookmarkModal.addEventListener("click", hideModal);
 }
-// chrome.storage.sync.remove('bookmarks')
+
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && bookmarkModal && !bookmarkModal.classList.contains("hidden")) {
+    hideModal();
+  }
+});
 
 function updateShortcutButtonLabel() {
   if (addShortcutButton) {
@@ -558,20 +493,8 @@ if (addShortcutButton) {
     editingShortcutId = null;
     updateShortcutButtonLabel();
   });
-}
+});
 
-// var bookmarks = [{
-//                 'name' : 'Google',
-//                 'icon'  : 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
-//                 'url' : 'https://google.com'
-
-//               },
-//               {
-//                 'name' : 'Gmail',
-//                 'icon'  : 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
-//                 'url' : 'https://gmail.com'
-//               }
-//           ];
 chrome.storage.sync.get(["shortcuts", "bookmarks"], function (result) {
   var shortcuts = Array.isArray(result.shortcuts) ? result.shortcuts : null;
   var legacy = Array.isArray(result.bookmarks) ? result.bookmarks : null;
