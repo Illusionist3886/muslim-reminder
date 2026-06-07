@@ -56,10 +56,6 @@ function refToLinks(ref) {
   return rendered.join("; ");
 }
 
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 function renderDhikr() {
   if (!Array.isArray(dhikrs) || dhikrs.length === 0) {
     return;
@@ -77,19 +73,29 @@ function renderDhikr() {
   if (arabicEl) arabicEl.textContent = safeText(item.arabic || "");
   if (translationEl) translationEl.textContent = safeText(item.english || "");
   if (referenceEl) referenceEl.innerHTML = refToLinks(item.reference || "");
-}
 
-function scheduleNext() {
-  var minutes = randomInt(10, 20);
   var nextEl = qs("#popup-next");
   if (nextEl) {
-    nextEl.textContent = "Next reminder in " + minutes + " minutes";
+    var minutes = randomInt(5, 15);
+    nextEl.textContent = "New dhikr in " + minutes + " min (while popup stays open)";
+    startPopupTimer(minutes);
   }
+}
 
-  setTimeout(function () {
+var popupTimerId = null;
+
+function startPopupTimer(minutes) {
+  if (popupTimerId) {
+    clearTimeout(popupTimerId);
+  }
+  var nextEl = qs("#popup-next");
+  popupTimerId = setTimeout(function () {
     renderDhikr();
-    scheduleNext();
   }, minutes * 60 * 1000);
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 renderDhikr();
