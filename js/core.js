@@ -125,7 +125,7 @@ function setupRamadanCountdown() {
 
     var monthNumber = hijri.month.number;
     if (monthNumber === 7 || monthNumber === 8) {
-      showRamadanCountdown(hijri.year);
+      showRamadanCountdown();
       if (countdownBox) {
         countdownBox.classList.remove("hidden");
       }
@@ -135,7 +135,30 @@ function setupRamadanCountdown() {
   });
 }
 
-function showRamadanCountdown(hijriYear) {
+// Find the Gregorian date of the next 1 Ramadan by scanning forward with the
+// browser's Umm al-Qura calendar. ponytail: linear day-scan; only runs during
+// Rajab/Shaban so Ramadan is <70 days out, well under the 400-day cap.
+function findNextRamadanStart() {
+  var d = new Date();
+  d.setHours(0, 0, 0, 0);
+  for (var i = 0; i < 400; i++) {
+    var parts = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+      day: "numeric",
+      month: "numeric"
+    }).formatToParts(d);
+    var map = {};
+    parts.forEach(function (p) {
+      map[p.type] = p.value;
+    });
+    if (parseInt(map.month, 10) === 9 && parseInt(map.day, 10) === 1) {
+      return d.getTime();
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function showRamadanCountdown() {
   var demoEl = qs("#demo");
   var labelEl = qs("#ramadanLabel");
   if (!demoEl) {
@@ -146,53 +169,31 @@ function showRamadanCountdown(hijriYear) {
     labelEl.textContent = "Days till Ramadan";
   }
 
-  fetch("https://api.aladhan.com/v1/hToG?date=01-09-" + hijriYear)
-    .then(function (res) {
-      return res.json();
-    })
-    .then(function (data) {
-      if (!data || !data.data || !data.data.gregorian || !data.data.gregorian.date) {
-        return;
-      }
+  var target = findNextRamadanStart();
+  if (target === null) {
+    return;
+  }
 
-      var gregorianDate = data.data.gregorian.date; // DD-MM-YYYY
-      var parts = gregorianDate.split("-");
-      if (parts.length !== 3) {
-        return;
-      }
+  if (ramadanTimerId) {
+    clearInterval(ramadanTimerId);
+  }
 
-      var target = new Date(
-        parseInt(parts[2], 10),
-        parseInt(parts[1], 10) - 1,
-        parseInt(parts[0], 10),
-        0,
-        0,
-        0,
-        0
-      ).getTime();
-
-      if (ramadanTimerId) {
-        clearInterval(ramadanTimerId);
-      }
-
-      ramadanTimerId = setInterval(function () {
-        var now = new Date().getTime();
-        var distance = target - now;
-        if (distance < 0) {
-          demoEl.textContent = "0d 0h 0m 0s";
-          return;
-        }
-        var days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        var hours = Math.floor(
-          (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-        );
-        var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-        demoEl.textContent =
-          days + "d " + hours + "h " + minutes + "m " + seconds + "s";
-      }, 1000);
-    })
-    .catch(function () {});
+  ramadanTimerId = setInterval(function () {
+    var now = new Date().getTime();
+    var distance = target - now;
+    if (distance < 0) {
+      demoEl.textContent = "0d 0h 0m 0s";
+      return;
+    }
+    var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    var hours = Math.floor(
+      (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
+    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+    demoEl.textContent =
+      days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+  }, 1000);
 }
 
 function deedsPresent() {

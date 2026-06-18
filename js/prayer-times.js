@@ -38,18 +38,46 @@ var prayerCities = [
   { nameBn: "ময়মনসিংহ", nameEn: "Mymensingh", lat: 24.7471, lon: 90.4203 }
 ];
 
-var methodToId = {
-  MuslimWorldLeague: 3,
-  Karachi: 1,
-  Egyptian: 5,
-  UmmAlQura: 4,
-  Dubai: 8,
-  NorthAmerica: 2,
-  Kuwait: 9,
-  Qatar: 10,
-  Singapore: 11,
-  Turkey: 13
+// PrayTimes (praytimes.org) calculation params per method.
+// base = a PrayTimes built-in to seed from; params = overrides (fajr/isha angles
+// or "N min"). Covers methods PrayTimes lacks built-ins for (Dubai/Kuwait/etc).
+var methodParams = {
+  MuslimWorldLeague: { base: "MWL" },
+  Karachi: { base: "Karachi" },
+  Egyptian: { base: "Egypt" },
+  UmmAlQura: { base: "Makkah" },
+  NorthAmerica: { base: "ISNA" },
+  Dubai: { base: "MWL", params: { fajr: 18.2, isha: 18.2 } },
+  Kuwait: { base: "MWL", params: { fajr: 18, isha: 17.5 } },
+  Qatar: { base: "MWL", params: { fajr: 18, isha: "90 min" } },
+  Singapore: { base: "MWL", params: { fajr: 20, isha: 18 } },
+  Turkey: { base: "MWL", params: { fajr: 18, isha: 17 } }
 };
+
+var monthNamesHijri = [
+  "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani",
+  "Jumada al-Awwal", "Jumada al-Thani", "Rajab", "Shaban",
+  "Ramadan", "Shawwal", "Dhul-Qadah", "Dhul-Hijjah"
+];
+
+// Hijri date from the browser's built-in Umm al-Qura calendar (no network).
+function getHijriDate(date) {
+  var parts = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric"
+  }).formatToParts(date);
+  var map = {};
+  parts.forEach(function (p) {
+    map[p.type] = p.value;
+  });
+  var monthNum = parseInt(map.month, 10);
+  return {
+    day: map.day,
+    month: { number: monthNum, en: monthNamesHijri[monthNum - 1] || map.month },
+    year: parseInt(map.year, 10)
+  };
+}
 
 var state = {
   city: prayerCities[0],
@@ -117,82 +145,25 @@ function renderPrayerGrid() {
   });
 }
 
-function updateCityInput() {
-  var input = ptById("citySearchInput");
-  if (!input) return;
-  input.value = state.city.nameBn + " (" + state.city.nameEn + ")";
+function updateCityLabel() {
+  var label = ptById("cityLabel");
+  if (!label) return;
+  label.textContent = state.city.nameBn + " (" + state.city.nameEn + ")";
 }
 
-function renderCityDropdown(filter) {
-  var dropdown = ptById("cityDropdown");
-  if (!dropdown) return;
-  dropdown.innerHTML = "";
-  var query = (filter || "").trim().toLowerCase();
-  var matches = prayerCities.filter(function (c) {
-    return (
-      c.nameBn.toLowerCase().indexOf(query) !== -1 ||
-      c.nameEn.toLowerCase().indexOf(query) !== -1
-    );
-  });
-
-  if (matches.length === 0) {
-    var none = document.createElement("div");
-    none.className = "city-no-result";
-    none.textContent = "No results";
-    dropdown.appendChild(none);
-    return;
-  }
-
-  matches.forEach(function (city) {
-    var opt = document.createElement("div");
-    opt.className = "city-opt";
-    opt.textContent = city.nameBn;
-
-    var en = document.createElement("span");
-    en.className = "city-en";
-    en.textContent = city.nameEn;
-    opt.appendChild(en);
-
-    opt.addEventListener("click", function () {
-      state.city = city;
-      chrome.storage.sync.set({ prayerCity: city }, function () {});
-      updateCityInput();
-      hideCityDropdown();
-      fetchPrayerTimes();
-    });
-
-    dropdown.appendChild(opt);
-  });
-}
-
-function showCityDropdown() {
-  var dropdown = ptById("cityDropdown");
-  if (dropdown) dropdown.classList.add("show");
-}
-
-function hideCityDropdown() {
-  var dropdown = ptById("cityDropdown");
-  if (dropdown) dropdown.classList.remove("show");
-}
-
-function bindCitySearch() {
-  var input = ptById("citySearchInput");
-  if (!input) return;
-
-  input.addEventListener("click", function () {
-    showCityDropdown();
-    renderCityDropdown("");
-  });
-
-  input.addEventListener("input", function () {
-    renderCityDropdown(input.value);
-  });
-
-  document.addEventListener("click", function (e) {
-    if (!e.target.closest("#citySearchWrap")) {
-      hideCityDropdown();
+// Nearest of the built-in cities to the given coords.
+// ponytail: flat squared lat/lon distance — fine for picking among 8 cities.
+function nearestCity(lat, lon) {
+  var best = prayerCities[0];
+  var bestDist = Infinity;
+  prayerCities.forEach(function (c) {
+    var d = (c.lat - lat) * (c.lat - lat) + (c.lon - lon) * (c.lon - lon);
+    if (d < bestDist) {
+      bestDist = d;
+      best = c;
     }
   });
+  return best;
 }
 
 function bindMethodSelect() {
@@ -217,14 +188,15 @@ function bindGps() {
     }
     navigator.geolocation.getCurrentPosition(
       function (pos) {
+        var near = nearestCity(pos.coords.latitude, pos.coords.longitude);
         state.city = {
-          nameBn: "My Location",
-          nameEn: "My Location",
+          nameBn: near.nameBn,
+          nameEn: near.nameEn,
           lat: pos.coords.latitude,
           lon: pos.coords.longitude
         };
         chrome.storage.sync.set({ prayerCity: state.city }, function () {});
-        updateCityInput();
+        updateCityLabel();
         fetchPrayerTimes();
       },
       function () {}
@@ -233,46 +205,41 @@ function bindGps() {
 }
 
 function fetchPrayerTimes() {
-  var methodId = methodToId[state.method] || 3;
-  var url =
-    "https://api.aladhan.com/v1/timings?latitude=" +
-    state.city.lat +
-    "&longitude=" +
-    state.city.lon +
-    "&method=" +
-    methodId;
+  var cfg = methodParams[state.method] || methodParams.MuslimWorldLeague;
+  var pt = new PrayTimes(cfg.base);
+  if (cfg.params) {
+    pt.adjust(cfg.params);
+  }
 
-  fetch(url)
-    .then(function (res) {
-      return res.json();
-    })
-    .then(function (data) {
-      if (!data || !data.data || !data.data.timings) {
-        return;
-      }
-      state.timings = data.data.timings;
-      state.hijri = data.data.date ? data.data.date.hijri : null;
-      if (state.hijri) {
-        window.dispatchEvent(
-          new CustomEvent("hijriUpdated", { detail: state.hijri })
-        );
-      }
-      updateDates();
-      renderPrayerGrid();
-    })
-    .catch(function () {});
+  var now = new Date();
+  // PrayTimes auto-detects timezone/DST from the local Date.
+  var times = pt.getTimes(now, [state.city.lat, state.city.lon], "auto", "auto");
+
+  state.timings = {
+    Fajr: times.fajr,
+    Sunrise: times.sunrise,
+    Dhuhr: times.dhuhr,
+    Asr: times.asr,
+    Maghrib: times.maghrib,
+    Isha: times.isha
+  };
+  state.hijri = getHijriDate(now);
+  window.dispatchEvent(
+    new CustomEvent("hijriUpdated", { detail: state.hijri })
+  );
+  updateDates();
+  renderPrayerGrid();
 }
 
 chrome.storage.sync.get(["prayerCity", "prayerMethod"], function (result) {
   if (result.prayerCity && result.prayerCity.lat && result.prayerCity.lon) {
     state.city = result.prayerCity;
   }
-  if (result.prayerMethod && methodToId[result.prayerMethod]) {
+  if (result.prayerMethod && methodParams[result.prayerMethod]) {
     state.method = result.prayerMethod;
   }
-  updateCityInput();
+  updateCityLabel();
   updateDates();
-  bindCitySearch();
   bindMethodSelect();
   bindGps();
   fetchPrayerTimes();
