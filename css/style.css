@@ -1,7 +1,7 @@
 @font-face{
   font-family:me_quran;
 
-  src:url(../fonts/me_quran.ttf);
+  src:url(me_quran.ttf);
 
   font-style:normal
 }
@@ -601,16 +601,6 @@ video {
   margin-bottom:0.5rem
 }
 
-.my-3{
-  margin-top:0.75rem;
-  margin-bottom:0.75rem
-}
-
-.my-4{
-  margin-top:1rem;
-  margin-bottom:1rem
-}
-
 .my-5{
   margin-top:1.25rem;
   margin-bottom:1.25rem
@@ -762,10 +752,6 @@ video {
   padding:0.5rem
 }
 
-.p-4{
-  padding:1rem
-}
-
 .p-5{
   padding:1.25rem
 }
@@ -809,11 +795,6 @@ video {
   line-height:2.25rem
 }
 
-.text-sm{
-  font-size:0.875rem;
-  line-height:1.25rem
-}
-
 .text-xl{
   font-size:1.25rem;
   line-height:1.75rem
@@ -841,16 +822,6 @@ video {
   color:rgb(107 114 128 / var(--tw-text-opacity, 1))
 }
 
-.text-gray-600{
-  --tw-text-opacity:1;
-  color:rgb(75 85 99 / var(--tw-text-opacity, 1))
-}
-
-.text-gray-700{
-  --tw-text-opacity:1;
-  color:rgb(55 65 81 / var(--tw-text-opacity, 1))
-}
-
 .text-gray-900{
   --tw-text-opacity:1;
   color:rgb(17 24 39 / var(--tw-text-opacity, 1))
@@ -864,15 +835,6 @@ video {
 .text-zinc-400{
   --tw-text-opacity:1;
   color:rgb(161 161 170 / var(--tw-text-opacity, 1))
-}
-
-.text-zinc-500{
-  --tw-text-opacity:1;
-  color:rgb(113 113 122 / var(--tw-text-opacity, 1))
-}
-
-.underline{
-  text-decoration-line:underline
 }
 
 .shadow{
