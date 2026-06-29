@@ -91,6 +91,77 @@ setHtml(".reference", refToLinks(notificationData.reference || ""));
 
 setupRamadanCountdown();
 deedsPresent();
+setupMotivationWall();
+
+// Sliding hadith cards. Auto-advances; prev/next + manual scroll also work.
+function setupMotivationWall() {
+  var track = qs("#hadithTrack");
+  if (!track || typeof hadiths === "undefined" || !hadiths.length) {
+    return;
+  }
+
+  hadiths.forEach(function (h) {
+    var card = document.createElement("div");
+    card.className = "hadith-card";
+    card.innerHTML =
+      '<div class="h-arabic">' + safeText(h.arabic) + "</div>" +
+      '<div class="h-english">' + safeText(h.english) + "</div>" +
+      '<div class="h-ref">' + hadithRefToLinks(h.reference || "") + "</div>" +
+      '<div class="h-more">Read more &darr;</div>';
+    track.appendChild(card);
+
+    // Only offer "Read more" when the text is actually clamped.
+    var clamped = card.querySelectorAll(".h-arabic, .h-english");
+    var truncated = Array.prototype.some.call(clamped, function (el) {
+      return el.scrollHeight > el.clientHeight + 1;
+    });
+    if (truncated) {
+      card.addEventListener("click", function (e) {
+        if (e.target.tagName !== "A") {
+          card.classList.toggle("expanded");
+        }
+      });
+    } else {
+      card.querySelector(".h-more").style.display = "none";
+      card.style.cursor = "default";
+    }
+  });
+
+  function collapseAll() {
+    qsa(".hadith-card.expanded").forEach(function (n) {
+      n.classList.remove("expanded");
+    });
+  }
+
+  var index = 0;
+  function goTo(i) {
+    collapseAll();
+    index = (i + hadiths.length) % hadiths.length;
+    track.scrollTo({ left: track.clientWidth * index, behavior: "smooth" });
+  }
+
+  // Collapse only when the visible card actually changes (manual swipe/scroll).
+  // Expanding a card grows its height and can fire 'scroll' too, so we ignore
+  // scrolls that don't move to a different card.
+  track.addEventListener("scroll", function () {
+    var visible = Math.round(track.scrollLeft / track.clientWidth);
+    if (visible !== index) {
+      index = visible;
+      collapseAll();
+    }
+  });
+
+  var prev = qs("#hadithPrev");
+  var next = qs("#hadithNext");
+  if (prev) prev.addEventListener("click", function () { goTo(index - 1); });
+  if (next) next.addEventListener("click", function () { goTo(index + 1); });
+
+  var timer;
+  function play() { timer = setInterval(function () { goTo(index + 1); }, 8000); }
+  track.addEventListener("mouseenter", function () { clearInterval(timer); });
+  track.addEventListener("mouseleave", play);
+  play();
+}
 
 function notifyUser() {
   var showNotification = {

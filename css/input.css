@@ -1,5 +1,5 @@
 @font-face{font-family:me_quran;src:url(me_quran.ttf);font-style:normal}
-.arabic{
+.arabic, .h-arabic{
     font-family: me_quran !important
 }
 @tailwind base;
