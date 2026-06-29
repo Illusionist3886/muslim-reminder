@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Muslim Reminder",
-    "version": "0.0.2",
-    "description": "A reminder app for dhikr and socialize",
+    "name": "Muslim Reminder - Dhikr, Prayer Times",
+    "version": "0.0.3",
+    "description": "A reminder app for dhikr and prayer times",
     "icons": {
         "128" : "icon/icon128.png",
         "48" : "icon/icon48.png",
