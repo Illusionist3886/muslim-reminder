@@ -40,6 +40,27 @@ var gtafs = [
         "pageTitle": "When waking up #2",
         "hasAudio": true,
         "audio_id": 2
+    },
+    {
+        "details": [
+            {
+                "book_id": "1",
+                "dua_global_id": "",
+                "ID": "1.3",
+                "dua_segment_id": "",
+                "top": "",
+                "arabic_diacless": "اللهم إني أعوذ بك من عذاب جهنم، ومن عذاب القبر، ومن فتنة المحيا والممات، ومن شر فتنة المسيح الدجال",
+                "arabic": "اَللّٰهُمَّ إِنِّيْ أَعُوْذُ بِكَ مِنْ عَذَابِ جَهَنَّمَ، وَمِنْ عَذَابِ الْقَبْرِ، وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ، وَمِنْ شَرِّ فِتْنَةِ الْمَسِيْحِ الدَّجَّالِ",
+                "transliteration": "Allāhumma innī aʿūdhu bika min ʿadhābi Jahannam, wa min ʿadhābil-qabr, wa min fitnati-l-maḥyā wal-mamāt, wa min sharri fitnati-l-Masīḥi-d-Dajjāl",
+                "translations": "O Allah, I seek Your protection from the punishment of the fire, from the punishment of the grave, from the trials of life and death, and from the evil of the trial of Al Maseh Al Dajaal.",
+                "bottom": "",
+                "reference": "Muslim 1/412",
+                "app_reference": ""
+            }
+        ],
+        "pageTitle": "Seeking refuge",
+        "hasAudio": false,
+        "audio_id": 0
     }
 ]
 
