@@ -27,16 +27,8 @@ function formatTime(timeStr) {
   return h12 + ":" + String(minutes).padStart(2, "0") + " " + ampm;
 }
 
-var prayerCities = [
-  { nameBn: "ঢাকা", nameEn: "Dhaka", lat: 23.8103, lon: 90.4125 },
-  { nameBn: "চট্টগ্রাম", nameEn: "Chattogram", lat: 22.3569, lon: 91.7832 },
-  { nameBn: "খুলনা", nameEn: "Khulna", lat: 22.8456, lon: 89.5403 },
-  { nameBn: "রাজশাহী", nameEn: "Rajshahi", lat: 24.3636, lon: 88.6241 },
-  { nameBn: "সিলেট", nameEn: "Sylhet", lat: 24.8949, lon: 91.8687 },
-  { nameBn: "বরিশাল", nameEn: "Barishal", lat: 22.7010, lon: 90.3535 },
-  { nameBn: "রংপুর", nameEn: "Rangpur", lat: 25.7439, lon: 89.2752 },
-  { nameBn: "ময়মনসিংহ", nameEn: "Mymensingh", lat: 24.7471, lon: 90.4203 }
-];
+// Default until the user picks a city.
+var defaultCity = { nameEn: "Dhaka, Dhaka Division, Bangladesh", lat: 23.8103, lon: 90.4125, tz: "Asia/Dhaka" };
 
 // PrayTimes (praytimes.org) calculation params per method.
 // base = a PrayTimes built-in to seed from; params = overrides (fajr/isha angles
@@ -80,7 +72,7 @@ function getHijriDate(date) {
 }
 
 var state = {
-  city: prayerCities[0],
+  city: defaultCity,
   method: "MuslimWorldLeague",
   timings: null,
   hijri: null
@@ -148,22 +140,79 @@ function renderPrayerGrid() {
 function updateCityLabel() {
   var label = ptById("cityLabel");
   if (!label) return;
-  label.textContent = state.city.nameBn + " (" + state.city.nameEn + ")";
+  label.textContent = state.city.nameEn;
 }
 
-// Nearest of the built-in cities to the given coords.
-// ponytail: flat squared lat/lon distance — fine for picking among 8 cities.
-function nearestCity(lat, lon) {
-  var best = prayerCities[0];
-  var bestDist = Infinity;
-  prayerCities.forEach(function (c) {
-    var d = (c.lat - lat) * (c.lat - lat) + (c.lon - lon) * (c.lon - lon);
-    if (d < bestDist) {
-      bestDist = d;
-      best = c;
+function setCity(city) { // city.tz absent (GPS) = browser timezone
+  state.city = city;
+  chrome.storage.sync.set({ prayerCity: city }, function () {});
+  updateCityLabel();
+  fetchPrayerTimes();
+}
+
+function bindCitySearch() {
+  var input = ptById("citySearchInput");
+  var dropdown = ptById("cityDropdown");
+  if (!input || !dropdown) return;
+
+  // GeoNames cities15000 (CC-BY), loaded once on first focus.
+  var world = null;
+  function load() {
+    if (world) return;
+    world = [];
+    fetch("data/cities.json")
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        world = d.cities.map(function (r) {
+          var place = r[1] ? r[1] + ", " : "";
+          return {
+            nameEn: r[0] + ", " + place + d.countries[r[2]],
+            lat: r[3],
+            lon: r[4],
+            tz: d.timezones[r[5]]
+          };
+        });
+        render();
+      })
+      .catch(function () { world = []; });
+  }
+
+  function render() {
+    var q = input.value.trim().toLowerCase();
+    dropdown.innerHTML = "";
+    var matches = (world || [])
+      .filter(function (c) {
+        return c.nameEn.toLowerCase().indexOf(q) !== -1;
+      })
+      .sort(function (a, b) { // names starting with the query first; stable, so biggest city wins
+        return (b.nameEn.toLowerCase().indexOf(q) === 0) - (a.nameEn.toLowerCase().indexOf(q) === 0);
+      })
+      .slice(0, 50); // ponytail: first 50 hits, type more to narrow
+    if (!matches.length) {
+      var none = document.createElement("div");
+      none.className = "city-no-result";
+      none.textContent = "No results";
+      dropdown.appendChild(none);
     }
+    matches.forEach(function (c) {
+      var opt = document.createElement("div");
+      opt.className = "city-opt";
+      opt.textContent = c.nameEn;
+      opt.addEventListener("click", function () {
+        input.value = "";
+        dropdown.classList.remove("show");
+        setCity(c);
+      });
+      dropdown.appendChild(opt);
+    });
+    dropdown.classList.add("show");
+  }
+
+  input.addEventListener("focus", function () { load(); render(); });
+  input.addEventListener("input", render);
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#citySearchWrap")) dropdown.classList.remove("show");
   });
-  return best;
 }
 
 function bindMethodSelect() {
@@ -188,20 +237,22 @@ function bindGps() {
     }
     navigator.geolocation.getCurrentPosition(
       function (pos) {
-        var near = nearestCity(pos.coords.latitude, pos.coords.longitude);
-        state.city = {
-          nameBn: near.nameBn,
-          nameEn: near.nameEn,
+        setCity({
+          nameEn: "My Location",
           lat: pos.coords.latitude,
           lon: pos.coords.longitude
-        };
-        chrome.storage.sync.set({ prayerCity: state.city }, function () {});
-        updateCityLabel();
-        fetchPrayerTimes();
+        });
       },
       function () {}
     );
   });
+}
+
+// Wall-clock "now" in the selected city's timezone, as a Date whose local
+// fields read that time. No tz (GPS) = the browser's own, which is right there.
+function cityNow() {
+  var tz = state.city && state.city.tz;
+  return tz ? new Date(new Date().toLocaleString("en-US", { timeZone: tz })) : new Date();
 }
 
 function fetchPrayerTimes() {
@@ -212,8 +263,10 @@ function fetchPrayerTimes() {
   }
 
   var now = new Date();
-  // PrayTimes auto-detects timezone/DST from the local Date.
-  var times = pt.getTimes(now, [state.city.lat, state.city.lon], "auto", "auto");
+  var local = cityNow();
+  // City UTC offset in hours (DST included), rounded to the quarter hour.
+  var offset = Math.round(((local - now) / 3600000 - now.getTimezoneOffset() / 60) * 4) / 4;
+  var times = pt.getTimes(local, [state.city.lat, state.city.lon], offset, 0);
 
   state.timings = {
     Fajr: times.fajr,
@@ -241,6 +294,7 @@ chrome.storage.sync.get(["prayerCity", "prayerMethod"], function (result) {
   updateCityLabel();
   updateDates();
   bindMethodSelect();
+  bindCitySearch();
   bindGps();
   fetchPrayerTimes();
 });
@@ -267,13 +321,13 @@ function resolvePrayerTime(key) {
 
 function getNextPrayer(mapping) {
   if (!state.timings) return null;
-  var now = new Date();
+  var now = cityNow();
 
   for (var i = 0; i < mapping.length; i++) {
     var t = resolvePrayerTime(mapping[i].key);
     if (!t) continue;
     var parts = t.split(":");
-    var dt = new Date();
+    var dt = cityNow();
     dt.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
     if (now < dt) {
       return {
@@ -286,7 +340,7 @@ function getNextPrayer(mapping) {
 
   var fallbackTime = resolvePrayerTime("Fajr");
   if (!fallbackTime) return null;
-  var nextDate = new Date();
+  var nextDate = cityNow();
   nextDate.setDate(nextDate.getDate() + 1);
   var nextParts = fallbackTime.split(":");
   nextDate.setHours(
@@ -326,7 +380,7 @@ setInterval(function () {
 function getHighlightPrayer() {
   if (!state.timings) return null;
 
-  var now = new Date();
+  var now = cityNow();
   var order = [
     "Fajr",
     "Sunrise",
@@ -341,7 +395,7 @@ function getHighlightPrayer() {
     var t = resolvePrayerTime(order[i]);
     if (!t) continue;
     var parts = t.split(":");
-    var dt = new Date();
+    var dt = cityNow();
     dt.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
     if (now < dt) {
       next = { key: order[i], time: t, date: dt };
@@ -354,7 +408,7 @@ function getHighlightPrayer() {
     var ct = resolvePrayerTime(order[j]);
     if (!ct) continue;
     var cparts = ct.split(":");
-    var cdt = new Date();
+    var cdt = cityNow();
     cdt.setHours(parseInt(cparts[0], 10), parseInt(cparts[1], 10), 0, 0);
     if (now >= cdt) {
       currentKey = order[j];
@@ -368,7 +422,7 @@ function getHighlightPrayer() {
 
   if (!next) {
     var fallbackTime = resolvePrayerTime("Fajr");
-    var nextDate = new Date();
+    var nextDate = cityNow();
     nextDate.setDate(nextDate.getDate() + 1);
     var nextParts = fallbackTime ? fallbackTime.split(":") : ["0", "0"];
     nextDate.setHours(
@@ -398,9 +452,9 @@ function isWithinSunriseWindow() {
   var sunrise = resolvePrayerTime("Sunrise");
   if (!sunrise) return false;
   var parts = sunrise.split(":");
-  var start = new Date();
+  var start = cityNow();
   start.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
   var end = new Date(start.getTime() + 15 * 60 * 1000);
-  var now = new Date();
+  var now = cityNow();
   return now >= start && now <= end;
 }
